@@ -79,7 +79,7 @@ Standard fields (see [User Context](https://mcp-use.com/docs) / mcp-use TypeScri
 | Field                                                  | Use in Manufact MCP                                                                                                                                                                             |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `**userId`** *(required)*                              | Stable user id (`sub`); pass to Manufact if the API expects an actor id for audit logs.                                                                                                         |
-| `**email*`*, `**name**`, `**username**`, `**picture**` | Display / support; optional in API calls.                                                                                                                                                       |
+| `**email*`*, `**name`**, `**username**`, `**picture**` | Display / support; optional in API calls.                                                                                                                                                       |
 | `**roles**`, `**permissions**`                         | Optional gate before calling mutating endpoints if Manufact maps these claims.                                                                                                                  |
 | `**scopes**`                                           | Verify OAuth scopes before relying on `email` or other sensitive fields.                                                                                                                        |
 | **Provider-specific / custom claims**                  | If Manufact or Supabase embeds org membership or API audience in the JWT, extract via OAuth `getUserInfo` (same pattern as Auth0 example in mcp-use docs) so tools can avoid extra round-trips. |
@@ -88,10 +88,10 @@ Standard fields (see [User Context](https://mcp-use.com/docs) / mcp-use TypeScri
 ### 3.3 Identity → Manufact Cloud API
 
 - Distinguish two layers of authentication clearly:
-  - **Client → MCP server:** mcp-use OAuth bearer token authentication. This is what protects `/mcp/*` and populates `**context.auth**`.
+  - **Client → MCP server:** mcp-use OAuth bearer token authentication. This is what protects `/mcp/*` and populates `**context.auth`**.r
   - **MCP server → Manufact Cloud API:** the upstream credential the Cloud API accepts.
 - Every tool runs with `**context.auth`** populated after OAuth; unauthenticated requests must not call Manufact APIs.
-- Each `**fetch**` to Manufact must include credentials the Manufact API accepts, for example:
+- Each `**fetch`** to Manufact must include credentials the Manufact API accepts, for example:
   - `**Authorization: Bearer <token>**` if the Cloud API accepts the Supabase or exchanged access token directly, or
   - A **Manufact API key or exchanged token** derived from the authenticated session if the Cloud API does not accept the MCP bearer token directly.
 - The spec must not assume these two credentials are identical. That remains an implementation decision until the Cloud API contract is confirmed.
@@ -99,7 +99,7 @@ Standard fields (see [User Context](https://mcp-use.com/docs) / mcp-use TypeScri
 
 ### 3.4 Profiles (organizations) and deployments
 
-- In the HTTP API, **profiles** (`GET /profiles`, `GET /profiles/<profile_id>`) correspond to org/workspace scope; MCP tools keep the names `**list_organizations`** / `**get_organization**` for agent ergonomics but pass `**profile_id**` where the URL requires it.
+- In the HTTP API, **profiles** (`GET /profiles`, `GET /profiles/<profile_id>`) correspond to org/workspace scope; MCP tools keep the names `**list_organizations`** / `**get_organization`** for agent ergonomics but pass `**profile_id**` where the URL requires it.
 - The MCP auth layer should surface enough authenticated identity in `**context.auth**` to support org-aware tool behavior, but the upstream org selection mechanism still needs to be defined explicitly for deployment tools.
 - **Projects** are not separate resources in this API slice—project context is represented **on deployment records** and via `**list_deployments`**; there are no dedicated project list/get endpoints (§4.2).
 
@@ -115,7 +115,7 @@ Naming follows **snake_case** MCP tool names; descriptions should mirror Vercel-
 | Tool                     | Purpose                                                                                                             |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | `**list_organizations`** | List profiles/orgs the current user can access (`GET /profiles`). **Required** when the user has multiple profiles. |
-| `**get_organization`**   | Metadata for one profile (`GET /profiles/<profile_id>`). Tool parameter: `**profile_id**`.                          |
+| `**get_organization`**   | Metadata for one profile (`GET /profiles/<profile_id>`). Tool parameter: `**profile_id`**.                          |
 
 
 ### 4.2 Deployments (CLI parity)
@@ -125,15 +125,15 @@ Map directly from:
 `mcp-use deployments list | get | restart | logs | stop | start` — `**delete**` is CLI/dashboard only, not an MCP tool.
 
 
-| Tool                            | Maps to CLI           | Behavior                                                                                                                                          |
-| ------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `**list_deployments**`          | `list`, `ls`          | `GET /deployments` — list visible deployments (scope via auth); optional query filters if the API supports them (status, time range, pagination). |
-| `**get_deployment**`            | `get <deployment-id>` | `GET /deployments/<deployment_id>` — full detail including project-related fields on the record.                                                  |
-| `**restart_deployment**`        | `restart`             | `POST /deployments/<deployment_id>/redeploy`.                                                                                                     |
-| `**get_deployment_logs**`       | `logs`                | `GET /deployments/<deployment_id>/logs` — runtime/platform logs (see §6).                                                                         |
-| `**get_deployment_build_logs**` | **MCP Specific**      | `GET /deployments/<deployment_id>/logs/build`.                                                                                                    |
-| `**stop_deployment`**           | `stop`                | `PATCH /deployments/<deployment_id>` with body `{ "status": "stopped" }`.                                                                         |
-| `**start_deployment**`          | `start`               | `PATCH /deployments/<deployment_id>` with body `{ "status": "running" }`.                                                                         |
+| Tool                              | Maps to CLI           | Behavior                                                                                                                                          |
+| --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `**list_deployments**`            | `list`, `ls`          | `GET /deployments` — list visible deployments (scope via auth); optional query filters if the API supports them (status, time range, pagination). |
+| `**get_deployment**`              | `get <deployment-id>` | `GET /deployments/<deployment_id>` — full detail including project-related fields on the record.                                                  |
+| `**restart_deployment**`          | `restart`             | `POST /deployments/<deployment_id>/redeploy`.                                                                                                     |
+| `**get_deployment_runtime_logs**` | `logs`                | `GET /deployments/<deployment_id>/logs` — runtime/platform logs (see §6).                                                                         |
+| `**get_deployment_build_logs**`   | **MCP Specific**      | `GET /deployments/<deployment_id>/logs/build`.                                                                                                    |
+| `**stop_deployment`**             | `stop`                | `PATCH /deployments/<deployment_id>` with body `{ "status": "stopped" }`.                                                                         |
+| `**start_deployment`**            | `start`               | `PATCH /deployments/<deployment_id>` with body `{ "status": "running" }`.                                                                         |
 
 
 ### 4.3 Deploy / create (dashboard parity)
@@ -150,16 +150,16 @@ CLI help excerpt did not include **create deploy**, but agents often need it:
 
 ## 5. Safety & mutating operations
 
-- Mutating tools that remain (`**restart_deployment**`, `**stop_deployment**`, `**start_deployment**`, `**create_deployment**`, etc.) should use **explicit IDs** in schemas where applicable; consider **annotations** per mcp-use `tools.md` where appropriate.
+- Mutating tools that remain (`**restart_deployment`**, `**stop_deployment**`, `**start_deployment**`, `**create_deployment**`, etc.) should use **explicit IDs** in schemas where applicable; consider **annotations** per mcp-use `tools.md` where appropriate.
 - Any future **domain**, **billing**, or other sensitive mutation should require explicit identifiers; optionally `**dryRun`** if the API supports it—otherwise the agent should confirm with the user before calling.
 - Return **clear errors** from Manufact API (status, message, retry hints) without leaking secrets.
 
 ---
 
-## 6. Log semantics (`get_deployment_logs` / `get_deployment_build_logs`)
+## 6. Log semantics (`get_deployment_runtime_logs` / `get_deployment_build_logs`)
 
 - **Paths:** `GET /deployments/<deployment_id>/logs` and `GET /deployments/<deployment_id>/logs/build` (§9).
-- **Parameters:** `deployment_id` required; add `**since`**, `**until**`, `**limit**`, `**cursor**` / `**nextPageToken**` if the API documents query params.
+- **Parameters:** `deployment_id` required; add `**since`**, `**until`**, `**limit**`, `**cursor**` / `**nextPageToken**` if the API documents query params.
 - **Search:** optional `query` if supported server-side.
 - **Streaming:** SSE/WebSocket tail can be a later iteration; v1 is **pull-based** only unless the API specifies otherwise.
 
@@ -183,7 +183,7 @@ Following mcp-use patterns (`concepts.md`):
 | `list_projects`                 | *(no separate tool — project fields on deployment records)* |
 | `list_deployments`              | `list_deployments` (`GET /deployments`)                     |
 | `get_deployment`                | `get_deployment`                                            |
-| `get_runtime_logs` / build logs | `get_deployment_logs` / `get_deployment_build_logs`         |
+| `get_runtime_logs` / build logs | `get_deployment_runtime_logs` / `get_deployment_build_logs` |
 | `deploy_to_vercel`              | `create_deployment` *(route TBD)*                           |
 | Doc search                      | `search_documentation` (optional)                           |
 
@@ -208,7 +208,7 @@ The API uses the resource name **profiles**; MCP tools keep the names `list_orga
 | MCP tool                 | HTTP  | Path                     |
 | ------------------------ | ----- | ------------------------ |
 | `**list_organizations*`* | `GET` | `/profiles`              |
-| `**get_organization**`   | `GET` | `/profiles/<profile_id>` |
+| `**get_organization`**   | `GET` | `/profiles/<profile_id>` |
 
 
 ### 9.2 Deployments
@@ -216,15 +216,15 @@ The API uses the resource name **profiles**; MCP tools keep the names `list_orga
 No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list filters (query string) depend on API docs. The spec still needs to define whether organization scoping is inferred from the upstream credential, sent via a header such as `x-profile-id`, or passed some other way.
 
 
-| MCP tool                        | HTTP    | Path                                      | Body / notes                                         |
-| ------------------------------- | ------- | ----------------------------------------- | ---------------------------------------------------- |
-| `**list_deployments`**          | `GET`   | `/deployments`                            | —                                                    |
-| `**get_deployment**`            | `GET`   | `/deployments/<deployment_id>`            | —                                                    |
-| `**restart_deployment**`        | `POST`  | `/deployments/<deployment_id>/redeploy`   | —                                                    |
-| `**get_deployment_logs**`       | `GET`   | `/deployments/<deployment_id>/logs`       | Query params per API (time range, pagination, etc.). |
-| `**get_deployment_build_logs**` | `GET`   | `/deployments/<deployment_id>/logs/build` | —                                                    |
-| `**stop_deployment**`           | `PATCH` | `/deployments/<deployment_id>`            | `{ "status": "stopped" }`                            |
-| `**start_deployment**`          | `PATCH` | `/deployments/<deployment_id>`            | `{ "status": "running" }`                            |
+| MCP tool                          | HTTP    | Path                                      | Body / notes                                         |
+| --------------------------------- | ------- | ----------------------------------------- | ---------------------------------------------------- |
+| `**list_deployments`**            | `GET`   | `/deployments`                            | —                                                    |
+| `**get_deployment`**              | `GET`   | `/deployments/<deployment_id>`            | —                                                    |
+| `**restart_deployment**`          | `POST`  | `/deployments/<deployment_id>/redeploy`   | —                                                    |
+| `**get_deployment_runtime_logs**` | `GET`   | `/deployments/<deployment_id>/logs`       | Query params per API (time range, pagination, etc.). |
+| `**get_deployment_build_logs**`   | `GET`   | `/deployments/<deployment_id>/logs/build` | —                                                    |
+| `**stop_deployment**`             | `PATCH` | `/deployments/<deployment_id>`            | `{ "status": "stopped" }`                            |
+| `**start_deployment**`            | `PATCH` | `/deployments/<deployment_id>`            | `{ "status": "running" }`                            |
 
 
 **Intentionally omitted:** `DELETE /deployments/<deployment_id>` — supported by the API for **CLI / dashboard** (`mcp-use deployments delete`); **no** `delete_deployment` MCP tool (non-goals).
@@ -232,9 +232,9 @@ No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list fi
 ### 9.3 Not yet mapped (CLI / dashboard)
 
 
-| MCP tool               | Notes         |
-| ---------------------- | ------------- |
-| `**create_deployment**` | Endpoint TBD. |
+| MCP tool                | Notes         |
+| ----------------------- | ------------- |
+| `**create_deployment`** | Endpoint TBD. |
 
 
 ### 9.4 Source of truth
@@ -275,5 +275,7 @@ No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list fi
 | 0.2     | 2026-03-30 | `context.auth`; tool → HTTP API mapping (§9); section renumber                                                                            |
 | 0.3     | 2026-03-30 | Canonical base `https://cloud.mcp-use.com/api/v1`; `/profiles`, `/deployments` routes; PATCH stop/start; projects folded into deployments |
 | 0.4     | 2026-03-30 | Omit `delete_deployment` from MCP; API DELETE remains CLI/dashboard only                                                                  |
-| 0.5     | 2026-03-30 | Remove deployment environment variable management from v1 scope                                                                            |
-| 0.6     | 2026-03-30 | Clarify mcp-use OAuth server auth vs Manufact upstream auth; document built-in OAuth endpoints and bearer-token protection                 |
+| 0.5     | 2026-03-30 | Remove deployment environment variable management from v1 scope                                                                           |
+| 0.6     | 2026-03-30 | Clarify mcp-use OAuth server auth vs Manufact upstream auth; document built-in OAuth endpoints and bearer-token protection                |
+
+
