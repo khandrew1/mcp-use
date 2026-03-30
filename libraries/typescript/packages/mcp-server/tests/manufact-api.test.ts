@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createDeployment,
   DEFAULT_MANUFACT_API_TIMEOUT_MS,
   DEFAULT_MANUFACT_LOG_TIMEOUT_MS,
   getDeploymentBuildLogs,
@@ -8,8 +9,8 @@ import {
   listDeployments,
   listOrganizations,
   ManufactApiError,
+  redeployDeployment,
   requestManufactApi,
-  restartDeployment,
   startDeployment,
   stopDeployment,
 } from "../src/utils/manufact-api.js";
@@ -75,6 +76,71 @@ describe("manufact api helpers", () => {
       profileId: "prof_123",
       body: { status: "running" },
     });
+  });
+
+  it("creates deployments with the GitHub source request shape", async () => {
+    globalThis.fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      expect(String(url)).toBe("https://example.test/api/v1/deployments");
+      expect(init?.method).toBe("POST");
+      expect(init?.headers).toMatchObject({
+        Authorization: "Bearer token-abc",
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "x-profile-id": "prof_123",
+      });
+      expect(init?.body).toBe(
+        JSON.stringify({
+          name: "acme-api",
+          source: {
+            type: "github",
+            repo: "acme/api",
+            branch: "main",
+            rootDir: "apps/api",
+            runtime: "node",
+            port: 3000,
+            buildCommand: "pnpm build",
+            startCommand: "pnpm start",
+            env: {
+              NODE_ENV: "production",
+            },
+          },
+          healthCheckPath: "/healthz",
+          serverId: "srv_123",
+        })
+      );
+
+      return new Response(JSON.stringify({ id: "dep_new" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    await expect(
+      createDeployment(
+        "token-abc",
+        {
+          name: "acme-api",
+          source: {
+            type: "github",
+            repo: "acme/api",
+            branch: "main",
+            rootDir: "apps/api",
+            runtime: "node",
+            port: 3000,
+            buildCommand: "pnpm build",
+            startCommand: "pnpm start",
+            env: {
+              NODE_ENV: "production",
+            },
+          },
+          healthCheckPath: "/healthz",
+          serverId: "srv_123",
+        },
+        {
+          profileId: "prof_123",
+        }
+      )
+    ).resolves.toEqual({ id: "dep_new" });
   });
 
   it("throws ManufactApiError on HTTP error with JSON message", async () => {
@@ -204,7 +270,14 @@ describe("manufact api helpers", () => {
 
     await listOrganizations("token-abc");
     await getOrganization("token-abc", "prof_1");
-    await restartDeployment("token-abc", "dep_1");
+    await createDeployment("token-abc", {
+      name: "acme-api",
+      source: {
+        type: "github",
+        repo: "acme/api",
+      },
+    });
+    await redeployDeployment("token-abc", "dep_1");
     await stopDeployment("token-abc", "dep_2");
     await startDeployment("token-abc", "dep_3");
 
@@ -218,6 +291,17 @@ describe("manufact api helpers", () => {
         url: "https://example.test/api/v1/profiles/prof_1",
         method: "GET",
         body: undefined,
+      },
+      {
+        url: "https://example.test/api/v1/deployments",
+        method: "POST",
+        body: JSON.stringify({
+          name: "acme-api",
+          source: {
+            type: "github",
+            repo: "acme/api",
+          },
+        }),
       },
       {
         url: "https://example.test/api/v1/deployments/dep_1/redeploy",

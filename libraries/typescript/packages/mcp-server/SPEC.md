@@ -2,7 +2,7 @@
 
 This document defines the **Manufact Cloud MCP Server**: an MCP server that lets an AI agent **inspect and control** [Manufact](https://manufact.com) cloud resources (MCP server hosting) in a workflow similar to the **Vercel MCP Server**—discover scope (profiles), then list and operate on deployments with clear IDs, logs, and lifecycle actions. **Irreversible destructive actions (e.g. deleting a deployment) are intentionally out of scope for MCP** (§5, §9.2).
 
-**Status:** Core HTTP routes for profiles + deployments are **locked** to `https://cloud.mcp-use.com/api/v1` (§9). Create-deployment and other routes remain TBD where not listed.
+**Status:** Core HTTP routes for profiles + deployments are **locked** to `https://cloud.mcp-use.com/api/v1` (§9), including `POST /deployments` for `create_deployment`.
 
 ---
 
@@ -129,7 +129,7 @@ Map directly from:
 | --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `**list_deployments**`            | `list`, `ls`          | `GET /deployments` — list visible deployments (scope via auth); optional query filters if the API supports them (status, time range, pagination). |
 | `**get_deployment**`              | `get <deployment-id>` | `GET /deployments/<deployment_id>` — full detail including project-related fields on the record.                                                  |
-| `**restart_deployment**`          | `restart`             | `POST /deployments/<deployment_id>/redeploy`.                                                                                                     |
+| `**redeploy_deployment**`         | `restart`             | `POST /deployments/<deployment_id>/redeploy`.                                                                                                     |
 | `**get_deployment_runtime_logs**` | `logs`                | `GET /deployments/<deployment_id>/logs` — runtime/platform logs (see §6).                                                                         |
 | `**get_deployment_build_logs**`   | **MCP Specific**      | `GET /deployments/<deployment_id>/logs/build`.                                                                                                    |
 | `**stop_deployment`**             | `stop`                | `PATCH /deployments/<deployment_id>` with body `{ "status": "stopped" }`.                                                                         |
@@ -138,19 +138,43 @@ Map directly from:
 
 ### 4.3 Deploy / create (dashboard parity)
 
-CLI help excerpt did not include **create deploy**, but agents often need it:
+CLI help excerpt did not include **create deploy**, but coding agents often need it:
 
 
-| Tool                                                | Purpose             |
-| --------------------------------------------------- | ------------------- |
-| `**create_deployment*`* *(or `trigger_deployment`)* | `POST /deployments` |
+| Tool                      | Purpose                                                                                                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `**create_deployment**`   | `POST /deployments` for a **new** GitHub-backed deployment. Use for first-time or replacement deploys. Do **not** use this to redeploy an existing deployment ID; use `**redeploy_deployment**` for redeploys. |
+
+**v1 input contract (agent-friendly, CLI-aligned):**
+
+- Required: `name`, `repo`
+- Optional: `branch`, `rootDir`, `runtime`, `port`, `buildCommand`, `startCommand`, `env`, `healthCheckPath`, `serverId`, `profileId`
+- The MCP server translates the flattened tool input to the CLI-compatible API body:
+
+```json
+{
+  "name": "example",
+  "source": {
+    "type": "github",
+    "repo": "owner/repo"
+  }
+}
+```
+
+### 4.4 Agent workflow guidance
+
+- Follow the CLI decision flow at the workflow level, not inside the tool implementation.
+- If an agent has local repo context and finds `.mcp-use/project.json`, it should inspect the linked deployment before mutating.
+- If the linked deployment exists and is healthy, prefer `**redeploy_deployment**`.
+- If the linked deployment is missing or failed, call `**create_deployment**` and pass `serverId` when available so the backend can preserve the stable URL pattern used by the CLI.
+- The MCP server itself should not depend on local filesystem heuristics or project-link files.
 
 
 ---
 
 ## 5. Safety & mutating operations
 
-- Mutating tools that remain (`**restart_deployment`**, `**stop_deployment**`, `**start_deployment**`, `**create_deployment**`, etc.) should use **explicit IDs** in schemas where applicable; consider **annotations** per mcp-use `tools.md` where appropriate.
+- Mutating tools that remain (`**redeploy_deployment`**, `**stop_deployment**`, `**start_deployment**`, `**create_deployment**`, etc.) should use **explicit IDs** in schemas where applicable; consider **annotations** per mcp-use `tools.md` where appropriate.
 - Any future **domain**, **billing**, or other sensitive mutation should require explicit identifiers; optionally `**dryRun`** if the API supports it—otherwise the agent should confirm with the user before calling.
 - Return **clear errors** from Manufact API (status, message, retry hints) without leaking secrets.
 
@@ -184,7 +208,7 @@ Following mcp-use patterns (`concepts.md`):
 | `list_deployments`              | `list_deployments` (`GET /deployments`)                     |
 | `get_deployment`                | `get_deployment`                                            |
 | `get_runtime_logs` / build logs | `get_deployment_runtime_logs` / `get_deployment_build_logs` |
-| `deploy_to_vercel`              | `create_deployment` *(route TBD)*                           |
+| `deploy_to_vercel`              | `create_deployment` (`POST /deployments`)                   |
 | Doc search                      | `search_documentation` (optional)                           |
 
 
@@ -220,7 +244,8 @@ No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list fi
 | --------------------------------- | ------- | ----------------------------------------- | ---------------------------------------------------- |
 | `**list_deployments`**            | `GET`   | `/deployments`                            | —                                                    |
 | `**get_deployment`**              | `GET`   | `/deployments/<deployment_id>`            | —                                                    |
-| `**restart_deployment**`          | `POST`  | `/deployments/<deployment_id>/redeploy`   | —                                                    |
+| `**redeploy_deployment**`         | `POST`  | `/deployments/<deployment_id>/redeploy`   | —                                                    |
+| `**create_deployment**`           | `POST`  | `/deployments`                            | GitHub-backed v1 create flow. Flattened tool input is translated to `{ name, source: { type: "github", ... }, healthCheckPath, serverId }`. |
 | `**get_deployment_runtime_logs**` | `GET`   | `/deployments/<deployment_id>/logs`       | Query params per API (time range, pagination, etc.). |
 | `**get_deployment_build_logs**`   | `GET`   | `/deployments/<deployment_id>/logs/build` | —                                                    |
 | `**stop_deployment**`             | `PATCH` | `/deployments/<deployment_id>`            | `{ "status": "stopped" }`                            |
@@ -229,19 +254,11 @@ No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list fi
 
 **Intentionally omitted:** `DELETE /deployments/<deployment_id>` — supported by the API for **CLI / dashboard** (`mcp-use deployments delete`); **no** `delete_deployment` MCP tool (non-goals).
 
-### 9.3 Not yet mapped (CLI / dashboard)
-
-
-| MCP tool                | Notes         |
-| ----------------------- | ------------- |
-| `**create_deployment`** | Endpoint TBD. |
-
-
-### 9.4 Source of truth
+### 9.3 Source of truth
 
 1. This section + `**https://cloud.mcp-use.com/api/v1**` behavior.
 2. `**mcp-use` CLI** — same paths where the MCP exposes the same operation; CLI-only commands (e.g. delete) are not duplicated as tools.
-3. Extend **§9.3** when additional v2+ routes are fixed.
+3. Extend this section when additional v2+ routes are fixed.
 
 ---
 
@@ -261,8 +278,7 @@ No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list fi
 1. **List/query params:** Supported query parameters for `GET /deployments` and `GET /deployments/.../logs` (pagination, filters).
 2. **Upstream credential model:** Confirm whether Manufact Cloud accepts the same bearer token issued via mcp-use Supabase OAuth, requires token exchange, or requires an API key.
 3. **Org scoping for deployment calls:** Confirm whether deployment requests are scoped purely by credential or also require an explicit org/profile selector such as a header.
-4. **Create deployment:** `POST` route and body for triggering a new deployment.
-5. **Rate limits:** Document limits and surface `Retry-After` to the agent in tool responses.
+4. **Rate limits:** Document limits and surface `Retry-After` to the agent in tool responses.
 
 ---
 
@@ -277,5 +293,4 @@ No `{organization_id}` or `{profile_id}` prefix in these paths. Optional list fi
 | 0.4     | 2026-03-30 | Omit `delete_deployment` from MCP; API DELETE remains CLI/dashboard only                                                                  |
 | 0.5     | 2026-03-30 | Remove deployment environment variable management from v1 scope                                                                           |
 | 0.6     | 2026-03-30 | Clarify mcp-use OAuth server auth vs Manufact upstream auth; document built-in OAuth endpoints and bearer-token protection                |
-
-
+| 0.7     | 2026-03-30 | Lock `create_deployment` to `POST /deployments` for GitHub-backed v1 deploys and document agent workflow guidance                        |

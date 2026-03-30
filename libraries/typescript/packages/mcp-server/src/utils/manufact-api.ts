@@ -16,14 +16,14 @@ export interface RequestManufactApiOptions extends ManufactRequestOptions {
   fetch?: typeof globalThis.fetch;
 }
 
-export interface ManufactOrganization extends Record<string, unknown> {
+export interface ManufactOrganization {
   id: string;
   profile_name: string;
   slug: string | null;
   role?: string | null;
 }
 
-export interface ManufactDeploymentSource extends Record<string, unknown> {
+export interface ManufactDeploymentSource {
   type?: string;
   repo?: string;
   branch?: string;
@@ -36,7 +36,26 @@ export interface ManufactDeploymentSource extends Record<string, unknown> {
   baseImage?: string;
 }
 
-export interface ManufactDeployment extends Record<string, unknown> {
+export interface ManufactCreateDeploymentGithubSource {
+  type: "github";
+  repo: string;
+  branch?: string;
+  rootDir?: string;
+  startCommand?: string;
+  runtime?: "node" | "python";
+  port?: number;
+  env?: Record<string, string>;
+  buildCommand?: string;
+}
+
+export interface ManufactCreateDeploymentRequest {
+  name: string;
+  source: ManufactCreateDeploymentGithubSource;
+  healthCheckPath?: string;
+  serverId?: string;
+}
+
+export interface ManufactDeployment {
   id: string;
   name?: string;
   userId?: string;
@@ -61,13 +80,12 @@ export interface ManufactDeployment extends Record<string, unknown> {
   serverSlug?: string;
 }
 
-export interface ManufactDeploymentListResponse extends Record<string, unknown> {
+export interface ManufactDeploymentListResponse {
   deployments: ManufactDeployment[];
   total?: number;
 }
 
-export interface ManufactDeploymentLogsResponse
-  extends Record<string, unknown> {
+export interface ManufactDeploymentLogsResponse {
   logs?: string;
   data?: Record<string, unknown> & {
     logs?: string;
@@ -278,6 +296,20 @@ export async function getDeployment(
   return requestManufactApi<ManufactDeployment>({
     accessToken,
     path: `/deployments/${deploymentId}`,
+    ...options,
+  });
+}
+
+export async function createDeployment(
+  accessToken: string,
+  request: ManufactCreateDeploymentRequest,
+  options: ManufactRequestOptions = {}
+): Promise<ManufactDeployment> {
+  return requestManufactApi<ManufactDeployment>({
+    accessToken,
+    path: "/deployments",
+    method: "POST",
+    body: request,
     ...options,
   });
 }
