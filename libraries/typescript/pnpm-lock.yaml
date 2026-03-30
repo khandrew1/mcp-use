@@ -511,6 +511,43 @@ importers:
         specifier: ^9.0.4
         version: 9.0.4
 
+  packages/mcp-server:
+    dependencies:
+      mcp-use:
+        specifier: workspace:*
+        version: link:../mcp-use
+      react:
+        specifier: ^19.2.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.2.4(react@19.2.4)
+      react-router:
+        specifier: ^7.12.0
+        version: 7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      tailwindcss:
+        specifier: ^4.2.0
+        version: 4.2.0
+      zod:
+        specifier: 4.3.5
+        version: 4.3.5
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.0
+        version: 25.3.0
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.10)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/mcp-use:
     dependencies:
       '@e2b/code-interpreter':
