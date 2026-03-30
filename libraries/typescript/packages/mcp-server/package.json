@@ -13,14 +13,15 @@
   ],
   "main": "dist/index.js",
   "scripts": {
-    "postinstall": "mcp-use generate-types || true",
-    "build": "mcp-use build",
+    "postinstall": "MCP_USE_OAUTH_SUPABASE_PROJECT_ID=mcp-use-build-placeholder mcp-use generate-types || true",
+    "build": "MCP_USE_OAUTH_SUPABASE_PROJECT_ID=mcp-use-build-placeholder mcp-use build",
     "dev": "mcp-use dev",
     "start": "mcp-use start",
-    "deploy": "mcp-use deploy"
+    "deploy": "mcp-use deploy",
+    "test": "vitest run"
   },
   "dependencies": {
-    "mcp-use": "latest",
+    "mcp-use": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router": "^7.13.0",
@@ -32,6 +33,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }

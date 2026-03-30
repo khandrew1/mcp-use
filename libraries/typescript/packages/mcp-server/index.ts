@@ -1,14 +1,24 @@
-import { MCPServer } from "mcp-use/server";
+import {
+  MCPServer,
+  oauthSupabaseProvider,
+  error,
+  object,
+} from "mcp-use/server";
+import { z } from "zod";
+import { fetchUsersMe, ManufactApiError } from "./src/manufact-api.js";
 
-// Create MCP server instance
+const skipVerification =
+  process.env.MCP_USE_OAUTH_SUPABASE_SKIP_VERIFICATION === "true";
+
 const server = new MCPServer({
-  name: "mcp-server",
-  title: "mcp-server", // display name
+  name: "manufact-cloud",
+  title: "Manufact Cloud",
   version: "1.0.0",
-  description: "Blank mcp-use server",
-  baseUrl: process.env.MCP_URL || "http://localhost:3000", // Full base URL (e.g., https://myserver.com)
+  description:
+    "Manufact Cloud MCP server — OAuth + Manufact Cloud API (testing scaffold).",
+  baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
-  websiteUrl: "https://mcp-use.com", // Can be customized later
+  websiteUrl: "https://mcp-use.com",
   icons: [
     {
       src: "icon.svg",
@@ -16,72 +26,37 @@ const server = new MCPServer({
       sizes: ["512x512"],
     },
   ],
+  oauth: oauthSupabaseProvider({
+    jwtSecret: process.env.MCP_USE_OAUTH_SUPABASE_JWT_SECRET,
+    skipVerification,
+  }),
 });
-
-/**
- * Define UI Widgets
- * All React components in the `resources/` folder
- * are automatically registered as MCP tools and resources.
- *
- * Just export widgetMetadata with description and Zod schema,
- * and mcp-use handles the rest!
- *
- * Docs: https://mcp-use.com/docs/typescript/server/mcp-apps
- */
-
-/*
- * Define MCP tools
- * Docs: https://mcp-use.com/docs/typescript/server/tools
 
 server.tool(
   {
-    name: "fetch-weather",
-    description: "Fetch the weather for a city",
-    schema: z.object({
-      city: z.string().describe("The city to fetch the weather for"),
-    }),
+    name: "whoami",
+    description:
+      "Returns the current user from the Manufact Cloud API (GET /users/me). Use to verify OAuth and upstream API access.",
+    schema: z.object({}),
+    annotations: { readOnlyHint: true },
   },
-  async ({ city }) => {
-    const response = await fetch(`https://wttr.in/${city}?format=j1`);
-    const data: any = await response.json();
-    const current = data.current_condition[0];
-    return text(`The weather in ${city} is ${current.weatherDesc[0].value}. Temperature: ${current.temp_C}°C, Humidity: ${current.humidity}%`);
+  async (_args, ctx) => {
+    try {
+      const me = await fetchUsersMe(ctx.auth.accessToken);
+      return object(
+        (typeof me === "object" && me !== null
+          ? me
+          : { value: me }) as Record<string, unknown>
+      );
+    } catch (e) {
+      if (e instanceof ManufactApiError) {
+        return error(`${e.message} (HTTP ${e.status})`);
+      }
+      return error(e instanceof Error ? e.message : String(e));
+    }
   }
 );
- */
 
-/*
- * Define MCP resources
- * Docs: https://mcp-use.com/docs/typescript/server/resources
-
-server.resource({
-  name: "config",
-  uri: "config://settings",
-  description: "Server configuration",
-}, async () => object({
-  theme: "dark",
-  language: "en",
-}));
-*/
-
-/*
- * Define MCP prompts
- * Docs: https://mcp-use.com/docs/typescript/server/prompts
-
-server.prompt(
-  {
-    name: "review-code",
-    description: "Review code for best practices and potential issues",
-    schema: z.object({
-      code: z.string().describe("The code to review"),
-    }),
-  },
-  async ({ code }) => {
-    return text(`Please review this code:\n\n${code}`);
-  }
-); */
-
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-console.log(`Server running on port ${PORT}`);
-// Start the server
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+console.log(`Manufact Cloud MCP server listening on port ${PORT}`);
 server.listen(PORT);
