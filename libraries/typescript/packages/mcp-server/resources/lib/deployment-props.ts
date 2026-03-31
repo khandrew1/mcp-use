@@ -1,19 +1,5 @@
 import { z } from "zod";
 
-/** Serialized API payload for organization widget */
-export const organizationPropsSchema = z.object({
-  organization: z
-    .object({
-      id: z.string(),
-      profile_name: z.string(),
-      slug: z.string().nullable().optional(),
-      role: z.string().nullable().optional(),
-    })
-    .passthrough(),
-});
-
-export type OrganizationWidgetProps = z.infer<typeof organizationPropsSchema>;
-
 /** Serialized API payload for single deployment */
 export const deploymentRecordSchema = z
   .object({

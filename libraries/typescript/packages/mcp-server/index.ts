@@ -103,11 +103,6 @@ server.tool(
         .describe("The profile ID for the organization to retrieve."),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false },
-    widget: {
-      name: "organization-card",
-      invoking: "Loading organization…",
-      invoked: "Organization loaded",
-    },
   },
   async ({ profileId }, ctx) => {
     try {
@@ -115,12 +110,7 @@ server.tool(
         ctx.auth.accessToken,
         profileId
       );
-      return widget({
-        props: { organization },
-        output: text(
-          `Organization: ${organization.profile_name} (profile id ${organization.id}).`
-        ),
-      });
+      return object({ organization });
     } catch (e) {
       return error(formatManufactApiError(e));
     }
