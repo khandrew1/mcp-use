@@ -3,6 +3,8 @@ import {
   oauthSupabaseProvider,
   error,
   object,
+  text,
+  widget,
 } from "mcp-use/server";
 import { z } from "zod";
 import {
@@ -17,6 +19,7 @@ import {
   redeployDeployment,
   startDeployment,
   stopDeployment,
+  toDeploymentSummary,
 } from "./src/utils/index.js";
 
 const skipVerification =
@@ -100,6 +103,11 @@ server.tool(
         .describe("The profile ID for the organization to retrieve."),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false },
+    widget: {
+      name: "organization-card",
+      invoking: "Loading organization…",
+      invoked: "Organization loaded",
+    },
   },
   async ({ profileId }, ctx) => {
     try {
@@ -107,7 +115,12 @@ server.tool(
         ctx.auth.accessToken,
         profileId
       );
-      return object({ organization });
+      return widget({
+        props: { organization },
+        output: text(
+          `Organization: ${organization.profile_name} (profile id ${organization.id}).`
+        ),
+      });
     } catch (e) {
       return error(formatManufactApiError(e));
     }
@@ -118,7 +131,7 @@ server.tool(
   {
     name: "list_deployments",
     description:
-      "List deployments visible to the authenticated user. Optionally scope by organization profile ID if needed.",
+      "List deployments visible to the authenticated user as compact rows (id, userId, name only). No UI widget—use get_deployment for full details and the deployment-card widget. Optionally scope by organization profile ID if needed.",
     schema: z.object({
       profileId: profileIdSchema,
     }),
@@ -129,9 +142,12 @@ server.tool(
       const deploymentList = await listDeployments(ctx.auth.accessToken, {
         profileId,
       });
+      const deployments = deploymentList.deployments.map(toDeploymentSummary);
       return object({
-        deployments: deploymentList.deployments,
-        total: deploymentList.total,
+        deployments,
+        ...(deploymentList.total !== undefined
+          ? { total: deploymentList.total }
+          : {}),
       });
     } catch (e) {
       return error(formatManufactApiError(e));
@@ -143,12 +159,17 @@ server.tool(
   {
     name: "get_deployment",
     description:
-      "Get full details for one deployment by deployment ID. Optionally scope by organization profile ID if needed.",
+      "Get the full deployment record for one deployment by ID (including status, source, domains, errors, and metadata). Use list_deployments only to discover ids; use this tool for details. Optionally scope by organization profile ID if needed.",
     schema: z.object({
       deploymentId: z.string().describe("The deployment ID to retrieve."),
       profileId: profileIdSchema,
     }),
     annotations: { readOnlyHint: true, destructiveHint: false },
+    widget: {
+      name: "deployment-card",
+      invoking: "Loading deployment…",
+      invoked: "Deployment loaded",
+    },
   },
   async ({ deploymentId, profileId }, ctx) => {
     try {
@@ -159,7 +180,18 @@ server.tool(
           profileId,
         }
       );
-      return object({ deployment });
+      const label =
+        deployment.name?.trim() ||
+        deployment.appName?.trim() ||
+        deployment.id;
+      return widget({
+        props: { deployment },
+        output: text(
+          `Deployment ${label}${
+            deployment.status ? ` — status ${deployment.status}` : ""
+          }.`
+        ),
+      });
     } catch (e) {
       return error(formatManufactApiError(e));
     }

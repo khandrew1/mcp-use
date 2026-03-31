@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@import "@openai/apps-sdk-ui/css";
+
+/* Configure Tailwind v4 to scan for classes */
+@source "../node_modules/@openai/apps-sdk-ui";
+@source "./**/*.{ts,tsx,js,jsx,html}";
+
+@theme {
+  /* Enable class-based dark mode */
+  --color-scheme: light dark;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+/* Embedded chat widgets: full-width tool-result blocks */
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mcp-widget-root {
+  @apply w-full min-w-0 px-1 py-0.5 text-[0.9375rem] leading-relaxed antialiased;
+}

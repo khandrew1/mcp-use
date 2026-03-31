@@ -13,6 +13,7 @@ import {
   requestManufactApi,
   startDeployment,
   stopDeployment,
+  toDeploymentSummary,
 } from "../src/utils/manufact-api.js";
 
 describe("manufact api helpers", () => {
@@ -410,5 +411,45 @@ describe("manufact api helpers", () => {
     await expect(listDeployments("token-abc")).resolves.toEqual({
       deployments: [],
     });
+  });
+});
+
+describe("toDeploymentSummary", () => {
+  it("keeps only id, userId, and name and drops heavy fields", () => {
+    const summary = toDeploymentSummary({
+      id: "dep_1",
+      userId: "user-uuid",
+      name: "my-app",
+      buildLogs: "x".repeat(10_000),
+      source: { type: "github", repo: "a/b" },
+      error: "boom",
+    });
+    expect(summary).toEqual({
+      id: "dep_1",
+      userId: "user-uuid",
+      name: "my-app",
+    });
+    expect(Object.keys(summary).sort()).toEqual(["id", "name", "userId"]);
+  });
+
+  it("returns only id when userId and name are absent", () => {
+    expect(toDeploymentSummary({ id: "dep_2" })).toEqual({ id: "dep_2" });
+  });
+
+  it("reads user_id when userId is absent", () => {
+    expect(
+      toDeploymentSummary({
+        id: "dep_3",
+        user_id: "legacy-user",
+        name: "n",
+      })
+    ).toEqual({ id: "dep_3", userId: "legacy-user", name: "n" });
+  });
+
+  it("throws when id is missing or empty", () => {
+    expect(() => toDeploymentSummary({} as Record<string, unknown>)).toThrow(
+      "non-empty string id"
+    );
+    expect(() => toDeploymentSummary({ id: "" })).toThrow("non-empty string id");
   });
 });

@@ -85,6 +85,40 @@ export interface ManufactDeploymentListResponse {
   total?: number;
 }
 
+/** Subset of deployment fields returned by `list_deployments` (full detail: `get_deployment`). */
+export interface ManufactDeploymentSummary {
+  id: string;
+  userId?: string;
+  name?: string;
+}
+
+/**
+ * Maps a deployment row from the list API to id, userId, and name only.
+ * Drops heavy fields (buildLogs, source, error, etc.).
+ */
+export function toDeploymentSummary(
+  row: ManufactDeployment | Record<string, unknown>
+): ManufactDeploymentSummary {
+  const r = row as Record<string, unknown>;
+  if (typeof r.id !== "string" || r.id.length === 0) {
+    throw new Error("Deployment summary requires a non-empty string id");
+  }
+  const summary: ManufactDeploymentSummary = { id: r.id };
+  const userId =
+    typeof r.userId === "string"
+      ? r.userId
+      : typeof r.user_id === "string"
+        ? r.user_id
+        : undefined;
+  if (userId !== undefined) {
+    summary.userId = userId;
+  }
+  if (typeof r.name === "string") {
+    summary.name = r.name;
+  }
+  return summary;
+}
+
 export interface ManufactDeploymentLogsResponse {
   logs?: string;
   data?: Record<string, unknown> & {
